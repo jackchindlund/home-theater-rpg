@@ -1,0 +1,1 @@
+export { db, firebaseApp } from "./src/lib/firebase";
