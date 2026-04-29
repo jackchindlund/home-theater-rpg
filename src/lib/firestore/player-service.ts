@@ -15,9 +15,10 @@ import {
 import { db } from "@/lib/firebase";
 import { getWorldByIndex } from "@/lib/config/worlds";
 import { QUEST_DEFINITIONS, questIncrementForSale } from "@/lib/config/quests";
+import { getPeriodKeyForCadence, isProgressStale } from "@/lib/game/quest-periods";
 import { applyEnemyDamage, calculateRewards, levelFromXp } from "@/lib/game/progression";
 import { isApprovedManager } from "@/lib/config/managers";
-import type { Player, QuestProgress, Sale, SaleInput, SaleResult } from "@/lib/types/game";
+import type { Player, QuestCadence, QuestProgress, Sale, SaleInput, SaleResult } from "@/lib/types/game";
 
 const PLAYERS_COLLECTION = "players";
 const SALES_COLLECTION = "sales";
@@ -106,24 +107,17 @@ export async function getQuestProgressForEmployee(employeeNumber: string): Promi
     collection(db, PLAYERS_COLLECTION, player.id, QUEST_PROGRESS_COLLECTION),
   );
 
-  const progressByQuestId = new Map<string, QuestProgress>();
+  const docByQuestId = new Map<string, (typeof progressSnapshot.docs)[number]>();
   for (const progressDoc of progressSnapshot.docs) {
-    progressByQuestId.set(progressDoc.id, {
-      id: progressDoc.id,
-      playerId: player.id,
-      questId: String(progressDoc.data().questId ?? progressDoc.id),
-      cadence: (progressDoc.data().cadence as "daily" | "weekly") ?? "daily",
-      progress: Number(progressDoc.data().progress ?? 0),
-      target: Number(progressDoc.data().target ?? 1),
-      completed: Boolean(progressDoc.data().completed),
-      lastUpdatedAt: toIsoString(progressDoc.data().lastUpdatedAt),
-    });
+    docByQuestId.set(progressDoc.id, progressDoc);
   }
 
+  const now = new Date();
+
   return QUEST_DEFINITIONS.map((quest) => {
-    const existing = progressByQuestId.get(quest.id);
-    return (
-      existing ?? {
+    const progressDoc = docByQuestId.get(quest.id);
+    if (!progressDoc) {
+      return {
         id: quest.id,
         playerId: player.id,
         questId: quest.id,
@@ -132,8 +126,36 @@ export async function getQuestProgressForEmployee(employeeNumber: string): Promi
         target: quest.target,
         completed: false,
         lastUpdatedAt: new Date().toISOString(),
-      }
-    );
+        periodKey: getPeriodKeyForCadence(quest.cadence, now),
+      };
+    }
+
+    const data = progressDoc.data() as Record<string, unknown>;
+    if (isProgressStale(data, quest.cadence, now)) {
+      return {
+        id: quest.id,
+        playerId: player.id,
+        questId: quest.id,
+        cadence: quest.cadence,
+        progress: 0,
+        target: quest.target,
+        completed: false,
+        lastUpdatedAt: new Date().toISOString(),
+        periodKey: getPeriodKeyForCadence(quest.cadence, now),
+      };
+    }
+
+    return {
+      id: progressDoc.id,
+      playerId: player.id,
+      questId: String(data.questId ?? progressDoc.id),
+      cadence: (data.cadence as QuestCadence) ?? quest.cadence,
+      progress: Number(data.progress ?? 0),
+      target: Number(data.target ?? quest.target),
+      completed: Boolean(data.completed),
+      lastUpdatedAt: toIsoString(data.lastUpdatedAt),
+      periodKey: typeof data.periodKey === "string" ? data.periodKey : getPeriodKeyForCadence(quest.cadence, now),
+    };
   });
 }
 
@@ -177,6 +199,7 @@ export async function submitSaleForEmployee(
   const playerRef = doc(db, PLAYERS_COLLECTION, player.id);
 
   const txOutcome = await runTransaction(db, async (transaction) => {
+    const now = new Date();
     // Firestore requires all transaction.get() calls before any writes.
     const questProgressCollectionRef = collection(db, PLAYERS_COLLECTION, player.id, QUEST_PROGRESS_COLLECTION);
     const questPlans: {
@@ -195,10 +218,10 @@ export async function submitSaleForEmployee(
 
       const questProgressRef = doc(questProgressCollectionRef, quest.id);
       const progressSnapshot = await transaction.get(questProgressRef);
-      const currentProgress = progressSnapshot.exists() ? Number(progressSnapshot.data().progress ?? 0) : 0;
-      const currentCompleted = progressSnapshot.exists()
-        ? Boolean(progressSnapshot.data().completed)
-        : false;
+      const rawData = progressSnapshot.exists() ? (progressSnapshot.data() as Record<string, unknown>) : undefined;
+      const stale = isProgressStale(rawData, quest.cadence, now);
+      const currentProgress = stale || !rawData ? 0 : Number(rawData.progress ?? 0);
+      const currentCompleted = stale || !rawData ? false : Boolean(rawData.completed);
       const nextProgress = Math.min(quest.target, currentProgress + increment);
       const completed = nextProgress >= quest.target;
 
@@ -262,6 +285,7 @@ export async function submitSaleForEmployee(
           progress: plan.nextProgress,
           target: plan.quest.target,
           completed: plan.completed,
+          periodKey: getPeriodKeyForCadence(plan.quest.cadence, now),
           lastUpdatedAt: serverTimestamp(),
         },
         { merge: true },

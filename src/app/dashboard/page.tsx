@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { PixelCard } from "@/components/layout/pixel-card";
 import { PlaceholderIcon, SampleSprite } from "@/components/ui/placeholders";
+import { QUEST_DEFINITIONS } from "@/lib/config/quests";
 import { getPlayerByEmployeeNumber, getQuestProgressForEmployee } from "@/lib/firestore/player-service";
 import { getWorldByIndex } from "@/lib/config/worlds";
 import { getActiveEmployeeNumber } from "@/lib/session/player-session";
@@ -85,16 +86,28 @@ export default function DashboardPage() {
         <p className="text-lg text-[#c4d6ff]">HP: {player?.currentEnemyHp ?? "--"}</p>
       </PixelCard>
 
-      <PixelCard title="Active Quests" subtitle="Daily + weekly quest placeholder">
+      <PixelCard
+        title="Active Quests"
+        subtitle="Daily reset: UTC midnight · Weekly reset: Monday 00:00 UTC"
+      >
         <div className="space-y-2">
-          {questProgress.map((quest) => (
-            <div key={quest.id} className="pixel-tag flex items-center justify-between gap-2 px-3 py-2">
-              <span>{quest.questId}</span>
-              <span>
-                {quest.progress}/{quest.target}
-              </span>
-            </div>
-          ))}
+          {questProgress.map((quest) => {
+            const title = QUEST_DEFINITIONS.find((q) => q.id === quest.questId)?.title ?? quest.questId;
+            return (
+              <div key={quest.id} className="pixel-tag flex items-center justify-between gap-2 px-3 py-2">
+                <span className="flex flex-col gap-0.5">
+                  <span>{title}</span>
+                  <span className="text-xs uppercase text-[#9fb8f5]">
+                    {quest.cadence} {quest.periodKey ? `· ${quest.periodKey}` : ""}
+                  </span>
+                </span>
+                <span>
+                  {quest.progress}/{quest.target}
+                  {quest.completed ? " ✓" : ""}
+                </span>
+              </div>
+            );
+          })}
           {questProgress.length === 0 ? (
             <p className="text-lg text-[#c4d6ff]">No quest progress yet. Submit a sale to start tracking.</p>
           ) : null}
