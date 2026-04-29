@@ -1,0 +1,79 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- players / subcollections ---
+    // NOTE: The web app does not use Firebase Auth yet. Anyone with your API key can
+    // read/write per these rules. For a stricter rollout, add Auth and tie documents
+    // to request.auth.uid (or use Cloud Functions for sensitive writes).
+
+    match /players/{playerId} {
+      allow read: if true;
+
+      allow create: if request.resource.data.employeeNumber is string
+        && request.resource.data.employeeNumber.size() > 0
+        && request.resource.data.employeeNumber.size() <= 64
+        && request.resource.data.displayName is string
+        && request.resource.data.level is int
+        && request.resource.data.xp is int
+        && request.resource.data.gold is int
+        && request.resource.data.currentWorld is int
+        && request.resource.data.currentEnemyIndex is int
+        && request.resource.data.currentEnemyHp is int
+        && request.resource.data.bossesCleared is int
+        && request.resource.data.totalSales is int;
+
+      allow update: if resource != null
+        && request.resource.data.employeeNumber == resource.data.employeeNumber
+        && request.resource.data.employeeNumber is string;
+
+      match /inventory/{itemId} {
+        allow read, write: if true;
+      }
+
+      match /questProgress/{questId} {
+        allow read, write: if true;
+      }
+    }
+
+    // --- sales (created on "Made Sale"; managers may delete) ---
+    match /sales/{saleId} {
+      allow read: if true;
+
+      allow create: if request.resource.data.playerId is string
+        && request.resource.data.playerId.size() > 0
+        && request.resource.data.tvPrice is number
+        && request.resource.data.basketAmount is number
+        && request.resource.data.tvPrice >= 0
+        && request.resource.data.tvPrice <= 1000000
+        && request.resource.data.basketAmount >= 0
+        && request.resource.data.basketAmount <= 1000000
+        && request.resource.data.audio is bool
+        && request.resource.data.services is bool
+        && request.resource.data.protection is bool
+        && request.resource.data.membership is bool
+        && request.resource.data.card is bool
+        && request.resource.data.xpEarned is number
+        && request.resource.data.goldEarned is number
+        && request.resource.data.damageDealt is number;
+
+      allow delete: if true;
+    }
+
+    // Optional: seed content collections (unused by shop today, but safe if you add data)
+    match /items/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /worlds/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /quests/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}
