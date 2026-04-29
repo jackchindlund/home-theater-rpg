@@ -46,6 +46,8 @@ export type QuestProgress = {
   target: number;
   completed: boolean;
   lastUpdatedAt: string;
+  /** Daily = UTC date YYYY-MM-DD; weekly = Monday UTC YYYY-MM-DD for that ISO week. */
+  periodKey?: string;
 };
 
 export type Player = {
