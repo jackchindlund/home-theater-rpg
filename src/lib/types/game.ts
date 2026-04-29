@@ -90,8 +90,14 @@ export type Sale = SaleInput & {
 
 export type SaleResult = {
   saleId: string;
+  /** XP from the sale formula only (before quest completion bonuses). */
   xpEarned: number;
+  /** Gold from the sale formula only (before quest completion bonuses). */
   goldEarned: number;
+  /** Extra XP granted when one or more quests complete this submission. */
+  questRewardXp: number;
+  /** Extra gold granted when one or more quests complete this submission. */
+  questRewardGold: number;
   damageDealt: number;
   enemyDefeated: boolean;
   advancedWorld: boolean;
