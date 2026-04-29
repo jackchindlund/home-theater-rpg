@@ -173,15 +173,10 @@ export async function submitSaleForEmployee(
   const rewards = calculateRewards(input);
   const enemyProgress = applyEnemyDamage(player, rewards.damageDealt);
 
-  const totalXp = player.xp + rewards.xpEarned;
-  const totalGold = player.gold + rewards.goldEarned;
-  const nextLevel = levelFromXp(totalXp);
-
   const saleRef = doc(collection(db, SALES_COLLECTION));
   const playerRef = doc(db, PLAYERS_COLLECTION, player.id);
 
-  const completedQuestIds: string[] = [];
-  await runTransaction(db, async (transaction) => {
+  const txOutcome = await runTransaction(db, async (transaction) => {
     // Firestore requires all transaction.get() calls before any writes.
     const questProgressCollectionRef = collection(db, PLAYERS_COLLECTION, player.id, QUEST_PROGRESS_COLLECTION);
     const questPlans: {
@@ -216,6 +211,19 @@ export async function submitSaleForEmployee(
       });
     }
 
+    let questRewardXp = 0;
+    let questRewardGold = 0;
+    for (const plan of questPlans) {
+      if (!plan.currentCompleted && plan.completed) {
+        questRewardXp += plan.quest.rewardXp;
+        questRewardGold += plan.quest.rewardGold;
+      }
+    }
+
+    const totalXp = player.xp + rewards.xpEarned + questRewardXp;
+    const totalGold = player.gold + rewards.goldEarned + questRewardGold;
+    const nextLevel = levelFromXp(totalXp);
+
     transaction.set(saleRef, {
       playerId: player.id,
       tvPrice: input.tvPrice,
@@ -243,6 +251,7 @@ export async function submitSaleForEmployee(
       updatedAt: serverTimestamp(),
     });
 
+    const completedQuestIds: string[] = [];
     for (const plan of questPlans) {
       transaction.set(
         plan.questProgressRef,
@@ -262,22 +271,33 @@ export async function submitSaleForEmployee(
         completedQuestIds.push(plan.quest.id);
       }
     }
+
+    return {
+      questRewardXp,
+      questRewardGold,
+      totalXp,
+      totalGold,
+      nextLevel,
+      completedQuestIds,
+    };
   });
 
   return {
     saleId: saleRef.id,
     xpEarned: rewards.xpEarned,
     goldEarned: rewards.goldEarned,
+    questRewardXp: txOutcome.questRewardXp,
+    questRewardGold: txOutcome.questRewardGold,
     damageDealt: rewards.damageDealt,
     enemyDefeated: enemyProgress.enemyDefeated,
     advancedWorld: enemyProgress.advancedWorld,
     nextEnemyHp: enemyProgress.nextEnemyHp,
     nextEnemyIndex: enemyProgress.nextEnemyIndex,
     nextWorld: enemyProgress.nextWorld,
-    nextLevel,
-    totalXp,
-    totalGold,
-    completedQuestIds,
+    nextLevel: txOutcome.nextLevel,
+    totalXp: txOutcome.totalXp,
+    totalGold: txOutcome.totalGold,
+    completedQuestIds: txOutcome.completedQuestIds,
   };
 }
 

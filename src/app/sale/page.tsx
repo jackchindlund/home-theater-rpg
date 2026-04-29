@@ -139,7 +139,15 @@ export default function SalePage() {
         {result ? (
           <div className="pixel-tag mt-4 space-y-1 p-3">
             <p>Sale saved: {result.saleId}</p>
-            <p>+{result.xpEarned} XP, +{result.goldEarned} Gold, {result.damageDealt} Damage</p>
+            <p>
+              +{result.xpEarned} XP, +{result.goldEarned} Gold from sale, {result.damageDealt} Damage
+              {result.questRewardXp > 0 || result.questRewardGold > 0 ? (
+                <>
+                  {" "}
+                  (+{result.questRewardXp} XP, +{result.questRewardGold} Gold from quests)
+                </>
+              ) : null}
+            </p>
             <p>
               Enemy {result.enemyDefeated ? "defeated" : "hit"} | World {result.nextWorld} Enemy{" "}
               {result.nextEnemyIndex + 1} HP {result.nextEnemyHp}
@@ -156,7 +164,12 @@ export default function SalePage() {
             <h2 className="pixel-title text-2xl">Battle Result</h2>
             <div className="mt-4 space-y-2 text-lg">
               <p>You dealt {result.damageDealt} damage.</p>
-              <p>You gained +{result.xpEarned} XP and +{result.goldEarned} Gold.</p>
+              <p>You gained +{result.xpEarned} XP and +{result.goldEarned} Gold from the sale.</p>
+              {result.questRewardXp > 0 || result.questRewardGold > 0 ? (
+                <p className="text-[#7aff9d]">
+                  Quest bonuses: +{result.questRewardXp} XP, +{result.questRewardGold} Gold (applied to your profile).
+                </p>
+              ) : null}
               <p>
                 {result.enemyDefeated ? "Enemy defeated!" : "Enemy survives."} World {result.nextWorld}, Enemy{" "}
                 {result.nextEnemyIndex + 1}, HP {result.nextEnemyHp}.
