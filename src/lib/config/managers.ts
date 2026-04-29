@@ -1,5 +1,5 @@
 export const APPROVED_MANAGER_EMPLOYEE_NUMBERS = [
-  "100001",
+  "1522974",
   "100002",
   "100003",
 ];
