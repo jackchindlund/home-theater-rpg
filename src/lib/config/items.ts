@@ -1,5 +1,9 @@
 import type { Item } from "@/lib/types/game";
 
+/**
+ * Single source of truth for shop prices, names, and item stats.
+ * Changes ship with the app (redeploy). Firestore `items` is not read by this codebase.
+ */
 export const ITEM_CATALOG: Item[] = [
   { id: "weapon-training-sword", name: "Training Sword", category: "weapon", attackBonus: 2, cost: 60 },
   { id: "weapon-bronze-blade", name: "Bronze Blade", category: "weapon", attackBonus: 5, cost: 140 },

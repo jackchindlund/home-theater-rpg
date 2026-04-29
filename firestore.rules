@@ -59,21 +59,5 @@ service cloud.firestore {
 
       allow delete: if true;
     }
-
-    // Optional: seed content collections (unused by shop today, but safe if you add data)
-    match /items/{docId} {
-      allow read: if true;
-      allow write: if false;
-    }
-
-    match /worlds/{docId} {
-      allow read: if true;
-      allow write: if false;
-    }
-
-    match /quests/{docId} {
-      allow read: if true;
-      allow write: if false;
-    }
   }
 }
