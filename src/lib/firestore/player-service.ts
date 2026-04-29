@@ -182,6 +182,40 @@ export async function submitSaleForEmployee(
 
   const completedQuestIds: string[] = [];
   await runTransaction(db, async (transaction) => {
+    // Firestore requires all transaction.get() calls before any writes.
+    const questProgressCollectionRef = collection(db, PLAYERS_COLLECTION, player.id, QUEST_PROGRESS_COLLECTION);
+    const questPlans: {
+      quest: (typeof QUEST_DEFINITIONS)[number];
+      questProgressRef: ReturnType<typeof doc>;
+      currentCompleted: boolean;
+      nextProgress: number;
+      completed: boolean;
+    }[] = [];
+
+    for (const quest of QUEST_DEFINITIONS) {
+      const increment = questIncrementForSale(quest.id, input);
+      if (increment <= 0) {
+        continue;
+      }
+
+      const questProgressRef = doc(questProgressCollectionRef, quest.id);
+      const progressSnapshot = await transaction.get(questProgressRef);
+      const currentProgress = progressSnapshot.exists() ? Number(progressSnapshot.data().progress ?? 0) : 0;
+      const currentCompleted = progressSnapshot.exists()
+        ? Boolean(progressSnapshot.data().completed)
+        : false;
+      const nextProgress = Math.min(quest.target, currentProgress + increment);
+      const completed = nextProgress >= quest.target;
+
+      questPlans.push({
+        quest,
+        questProgressRef,
+        currentCompleted,
+        nextProgress,
+        completed,
+      });
+    }
+
     transaction.set(saleRef, {
       playerId: player.id,
       tvPrice: input.tvPrice,
@@ -209,38 +243,23 @@ export async function submitSaleForEmployee(
       updatedAt: serverTimestamp(),
     });
 
-    const questProgressCollectionRef = collection(db, PLAYERS_COLLECTION, player.id, QUEST_PROGRESS_COLLECTION);
-    for (const quest of QUEST_DEFINITIONS) {
-      const increment = questIncrementForSale(quest.id, input);
-      if (increment <= 0) {
-        continue;
-      }
-
-      const questProgressRef = doc(questProgressCollectionRef, quest.id);
-      const progressSnapshot = await transaction.get(questProgressRef);
-      const currentProgress = progressSnapshot.exists() ? Number(progressSnapshot.data().progress ?? 0) : 0;
-      const currentCompleted = progressSnapshot.exists()
-        ? Boolean(progressSnapshot.data().completed)
-        : false;
-      const nextProgress = Math.min(quest.target, currentProgress + increment);
-      const completed = nextProgress >= quest.target;
-
+    for (const plan of questPlans) {
       transaction.set(
-        questProgressRef,
+        plan.questProgressRef,
         {
           playerId: player.id,
-          questId: quest.id,
-          cadence: quest.cadence,
-          progress: nextProgress,
-          target: quest.target,
-          completed,
+          questId: plan.quest.id,
+          cadence: plan.quest.cadence,
+          progress: plan.nextProgress,
+          target: plan.quest.target,
+          completed: plan.completed,
           lastUpdatedAt: serverTimestamp(),
         },
         { merge: true },
       );
 
-      if (!currentCompleted && completed) {
-        completedQuestIds.push(quest.id);
+      if (!plan.currentCompleted && plan.completed) {
+        completedQuestIds.push(plan.quest.id);
       }
     }
   });
