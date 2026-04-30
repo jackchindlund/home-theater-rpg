@@ -8,6 +8,7 @@ import { getActiveEmployeeNumber } from "@/lib/session/player-session";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/profile", label: "Profile" },
   { href: "/sale", label: "Made Sale" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/shop", label: "Shop" },

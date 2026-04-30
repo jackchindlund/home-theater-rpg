@@ -54,6 +54,10 @@ export type Player = {
   id: string;
   employeeNumber: string;
   displayName: string;
+  /** Paper-doll base — matches `public/sprites/avatar/bodies/{id}.png`. */
+  appearanceBodyId: string;
+  /** Paper-doll hair — matches `public/sprites/avatar/hair/{id}.png`. */
+  appearanceHairId: string;
   level: number;
   xp: number;
   gold: number;

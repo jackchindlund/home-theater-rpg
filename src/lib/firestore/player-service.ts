@@ -17,6 +17,12 @@ import { getWorldByIndex } from "@/lib/config/worlds";
 import { QUEST_DEFINITIONS, questIncrementForSale } from "@/lib/config/quests";
 import { getPeriodKeyForCadence, isProgressStale } from "@/lib/game/quest-periods";
 import { applyEnemyDamage, calculateRewards, levelFromXp } from "@/lib/game/progression";
+import {
+  DEFAULT_APPEARANCE_BODY_ID,
+  DEFAULT_APPEARANCE_HAIR_ID,
+  isValidBodyId,
+  isValidHairId,
+} from "@/lib/config/appearance";
 import { isApprovedManager } from "@/lib/config/managers";
 import type { Player, QuestCadence, QuestProgress, Sale, SaleInput, SaleResult } from "@/lib/types/game";
 
@@ -36,11 +42,23 @@ function toIsoString(value: unknown): string {
   return new Date().toISOString();
 }
 
+function coerceAppearanceBodyId(raw: unknown): string {
+  const s = String(raw ?? "");
+  return isValidBodyId(s) ? s : DEFAULT_APPEARANCE_BODY_ID;
+}
+
+function coerceAppearanceHairId(raw: unknown): string {
+  const s = String(raw ?? "");
+  return isValidHairId(s) ? s : DEFAULT_APPEARANCE_HAIR_ID;
+}
+
 function mapPlayerFromDoc(id: string, data: Record<string, unknown>): Player {
   return {
     id,
     employeeNumber: String(data.employeeNumber ?? ""),
     displayName: String(data.displayName ?? `Player ${String(data.employeeNumber ?? "")}`),
+    appearanceBodyId: coerceAppearanceBodyId(data.appearanceBodyId),
+    appearanceHairId: coerceAppearanceHairId(data.appearanceHairId),
     level: Number(data.level ?? 1),
     xp: Number(data.xp ?? 0),
     gold: Number(data.gold ?? 0),
@@ -63,6 +81,8 @@ function defaultPlayer(employeeNumber: string): Omit<Player, "id"> {
   return {
     employeeNumber,
     displayName: `Player ${employeeNumber}`,
+    appearanceBodyId: DEFAULT_APPEARANCE_BODY_ID,
+    appearanceHairId: DEFAULT_APPEARANCE_HAIR_ID,
     level: 1,
     xp: 0,
     gold: 0,
@@ -364,4 +384,47 @@ export async function addGoldToEmployee(employeeNumber: string, goldToAdd: numbe
   });
 
   return getOrCreatePlayerByEmployeeNumber(employeeNumber);
+}
+
+export type ProfileUpdate = {
+  displayName?: string;
+  appearanceBodyId?: string;
+  appearanceHairId?: string;
+};
+
+export async function updatePlayerProfile(employeeNumber: string, updates: ProfileUpdate): Promise<Player> {
+  const player = await getOrCreatePlayerByEmployeeNumber(employeeNumber);
+  const playerRef = doc(db, PLAYERS_COLLECTION, player.id);
+  const patch: Record<string, unknown> = { updatedAt: serverTimestamp() };
+
+  if (updates.displayName !== undefined) {
+    const name = updates.displayName.trim();
+    if (name.length < 1 || name.length > 32) {
+      throw new Error("Display name must be between 1 and 32 characters.");
+    }
+    patch.displayName = name;
+  }
+  if (updates.appearanceBodyId !== undefined) {
+    if (!isValidBodyId(updates.appearanceBodyId)) {
+      throw new Error("Invalid body selection.");
+    }
+    patch.appearanceBodyId = updates.appearanceBodyId;
+  }
+  if (updates.appearanceHairId !== undefined) {
+    if (!isValidHairId(updates.appearanceHairId)) {
+      throw new Error("Invalid hair selection.");
+    }
+    patch.appearanceHairId = updates.appearanceHairId;
+  }
+
+  if (Object.keys(patch).length <= 1) {
+    return player;
+  }
+
+  await updateDoc(playerRef, patch);
+  const refreshed = await getPlayerByEmployeeNumber(employeeNumber.trim());
+  if (!refreshed) {
+    throw new Error("Could not reload profile.");
+  }
+  return refreshed;
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { PixelCard } from "@/components/layout/pixel-card";
+import { PlayerAvatar } from "@/components/game/player-avatar";
 import { PlaceholderIcon } from "@/components/ui/placeholders";
 import { getLeaderboardPlayers } from "@/lib/firestore/player-service";
 import type { Player } from "@/lib/types/game";
@@ -35,10 +36,11 @@ export default function LeaderboardPage() {
           {players.map((row, index) => (
             <div
               key={row.id}
-              className="pixel-tag grid grid-cols-[64px_1fr_80px_80px] items-center gap-2 px-3 py-2 text-base"
+              className="pixel-tag grid grid-cols-[40px_48px_minmax(0,1fr)_80px_80px] items-center gap-2 px-3 py-2 text-base"
             >
               <span>#{index + 1}</span>
-              <span>{row.displayName}</span>
+              <PlayerAvatar player={row} size={40} className="ring-1 ring-[#5f87e5]/40" />
+              <span className="min-w-0 truncate">{row.displayName}</span>
               <span>LV {row.level}</span>
               <span>{row.gold}G</span>
             </div>

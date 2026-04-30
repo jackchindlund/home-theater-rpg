@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { PixelCard } from "@/components/layout/pixel-card";
-import { PlaceholderIcon, SampleSprite } from "@/components/ui/placeholders";
+import { ItemIcon } from "@/components/game/item-icon";
+import { PlaceholderIcon } from "@/components/ui/placeholders";
 import { ITEM_CATALOG } from "@/lib/config/items";
 import { purchaseItem } from "@/lib/firestore/inventory-service";
 import { getPlayerByEmployeeNumber } from "@/lib/firestore/player-service";
@@ -82,14 +83,14 @@ export default function ShopPage() {
         {sectionOrder.map((section) => (
           <PixelCard key={section.category} title={section.title} subtitle="Purchase from catalog">
             <div className="space-y-2">
-              <div className="mb-2">
-                <SampleSprite title={`${section.title} Icon`} toneClass="tone-blue" />
-              </div>
               {(catalogBySection.get(section.category) ?? []).map((item) => (
                 <div key={item.id} className="pixel-tag flex items-center justify-between gap-3 px-3 py-2">
-                  <div>
-                    <p>{item.name}</p>
-                    <p className="text-sm text-[#9fb8f5]">{item.cost}G</p>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <ItemIcon itemId={item.id} size={40} title={item.name} />
+                    <div>
+                      <p>{item.name}</p>
+                      <p className="text-sm text-[#9fb8f5]">{item.cost}G</p>
+                    </div>
                   </div>
                   <button
                     type="button"
