@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { PixelCard } from "@/components/layout/pixel-card";
-import { PlaceholderIcon, SampleSprite } from "@/components/ui/placeholders";
+import { ItemIcon } from "@/components/game/item-icon";
+import { PlayerAvatar } from "@/components/game/player-avatar";
 import { getItemById } from "@/lib/config/items";
 import { equipOrUseItem, getInventoryForEmployee } from "@/lib/firestore/inventory-service";
 import { getPlayerByEmployeeNumber } from "@/lib/firestore/player-service";
@@ -79,7 +81,22 @@ export default function InventoryPage() {
   }
 
   return (
-    <AppShell title="Inventory" subtitle="Manage equipment, potions, and cosmetics.">
+    <AppShell title="Inventory" subtitle="Equipment matches your paper-doll avatar everywhere.">
+      {player ? (
+        <PixelCard title="Your hero" subtitle={player.displayName}>
+          <div className="flex flex-wrap items-center gap-6">
+            <PlayerAvatar player={player} size={96} className="ring-2 ring-[#5f87e5]/50" />
+            <p className="text-sm text-[#9fb8f5]">
+              Change body & hair on{" "}
+              <Link href="/profile" className="text-[#ffd447] underline underline-offset-2">
+                Profile
+              </Link>
+              .
+            </p>
+          </div>
+        </PixelCard>
+      ) : null}
+
       <div className="grid gap-4 md:grid-cols-3">
         {[
           { title: "Weapons", category: "weapon" as const },
@@ -95,14 +112,17 @@ export default function InventoryPage() {
                 }
                 return (
                   <div key={entry.itemId} className="pixel-tag flex items-center justify-between gap-2 px-3 py-2">
-                    <span>
-                      {item.name} x{entry.quantity}
+                    <span className="flex min-w-0 items-center gap-2">
+                      <ItemIcon itemId={item.id} size={36} title={item.name} />
+                      <span className="truncate">
+                        {item.name} x{entry.quantity}
+                      </span>
                     </span>
                     <button
                       type="button"
                       onClick={() => handleAction(entry.itemId)}
                       disabled={busyItemId === entry.itemId}
-                      className="pixel-button px-2 py-1 text-sm uppercase disabled:opacity-60"
+                      className="pixel-button shrink-0 px-2 py-1 text-sm uppercase disabled:opacity-60"
                     >
                       {busyItemId === entry.itemId ? "..." : item.category === "potion" ? "Use" : "Equip"}
                     </button>
@@ -116,13 +136,6 @@ export default function InventoryPage() {
       </div>
 
       <PixelCard title="Cosmetics">
-        <div className="mb-2 flex gap-2">
-          <PlaceholderIcon label="Cosmetic" colorClass="tone-purple" glyph="✨" />
-          <PlaceholderIcon label="Avatar" colorClass="tone-blue" glyph="🧙" />
-        </div>
-        <div className="mb-3">
-          <SampleSprite title="Avatar Sprite" toneClass="tone-purple" />
-        </div>
         <div className="space-y-2">
           {sections.cosmetic.map((entry) => {
             const item = getItemById(entry.itemId);
@@ -131,7 +144,10 @@ export default function InventoryPage() {
             }
             return (
               <div key={entry.itemId} className="pixel-tag flex items-center justify-between gap-2 px-3 py-2">
-                <span>{item.name}</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  <ItemIcon itemId={item.id} size={36} title={item.name} />
+                  <span className="truncate">{item.name}</span>
+                </span>
                 <button
                   type="button"
                   onClick={() => handleAction(entry.itemId)}
@@ -147,17 +163,36 @@ export default function InventoryPage() {
         </div>
       </PixelCard>
 
-      <PixelCard title="Equipped">
-        <div className="mb-2 flex gap-2">
-          <PlaceholderIcon label="Weapon" colorClass="tone-blue" glyph="⚔️" />
-          <PlaceholderIcon label="Armor" colorClass="tone-green" glyph="🛡️" />
-        </div>
-        <p>Weapon: {player?.equippedWeapon ?? "-"}</p>
-        <p>Armor: {player?.equippedArmor ?? "-"}</p>
-        <p>Cosmetic: {player?.equippedCosmetic ?? "-"}</p>
-        <p>Potion: {player?.activePotion ?? "-"}</p>
+      <PixelCard title="Equipped loadout">
+        {player ? (
+          <div className="flex flex-wrap items-start gap-6">
+            <PlayerAvatar player={player} size={72} />
+            <div className="space-y-2 text-sm">
+              <EquippedRow label="Weapon" itemId={player.equippedWeapon} />
+              <EquippedRow label="Armor" itemId={player.equippedArmor} />
+              <EquippedRow label="Cosmetic" itemId={player.equippedCosmetic} />
+              <p>
+                <span className="text-[#9fb8f5]">Potion: </span>
+                {player.activePotion ? getItemById(player.activePotion)?.name ?? player.activePotion : "—"}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="pixel-subtitle">Loading...</p>
+        )}
       </PixelCard>
       {error ? <p className="text-[#ff7d7d]">{error}</p> : null}
     </AppShell>
+  );
+}
+
+function EquippedRow({ label, itemId }: { label: string; itemId: string | null }) {
+  const item = itemId ? getItemById(itemId) : null;
+  return (
+    <div className="flex items-center gap-2">
+      {itemId ? <ItemIcon itemId={itemId} size={28} title={item?.name} /> : <span className="inline-block w-7" />}
+      <span className="text-[#9fb8f5]">{label}: </span>
+      <span>{item?.name ?? "—"}</span>
+    </div>
   );
 }
